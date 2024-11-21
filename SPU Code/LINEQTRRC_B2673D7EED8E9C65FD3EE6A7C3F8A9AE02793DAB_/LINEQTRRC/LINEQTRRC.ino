@@ -2,13 +2,13 @@
 #include "CytronMotorDriver.h"
 
 // PID tuning parameters and robot speed limits
-float Kp = 0.0001;
+float Kp = 1.74; // Kp ค่าหัก ถ้า smoothเกินให้เพิ่ม ถ้าน้อยเกินให้ลด
 float Ki = 0;
-float Kd = 0.001;
+float Kd = 0.63; // Kd ความsmooth ในการหักเข้าเส้น
 const uint8_t maxspeeda = 255;
 const uint8_t maxspeedb = 255;
-const uint8_t basespeeda = 180;
-const uint8_t basespeedb = 180;
+const uint8_t basespeeda = 50;
+const uint8_t basespeedb = 50;
 int state_L = 0;
 int state_R = 0;
 int countstop = 0;
