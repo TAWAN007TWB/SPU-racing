@@ -1,13 +1,13 @@
 #include <QTRSensors.h>
 #include "CytronMotorDriver.h"
 
-float Kp = 0.1;
+float Kp = 0.07; // Kp ค่าหัก ถ้า smoothเกินให้เพิ่ม ถ้าน้อยเกินให้ลด
 float Ki = 0;
-float Kd = 0.1;
-const uint8_t maxspeeda = 100;
-const uint8_t maxspeedb = 100;
-const uint8_t basespeeda = 80;
-const uint8_t basespeedb = 80;
+float Kd = Kd = 10; // Kd ความsmooth ในการหักเข้าเส้น
+const uint8_t maxspeeda = 80;
+const uint8_t maxspeedb = 80;
+const uint8_t basespeeda = 50;
+const uint8_t basespeedb = 50;
 int state_L = 0;
 int state_R = 0;
 int countstop = 0;
@@ -25,19 +25,19 @@ uint16_t sensorValues[SensorCount];
 CytronMD motor1(PWM_PWM, D3, D2);  // PWM 1A = Pin D3, PWM 1B = Pin D2.
 CytronMD motor2(PWM_PWM, D5, D4);  // PWM 2A = Pin D5, PWM 2B = Pin D4.
 
-const uint8_t buttonPin = 6; // Button connected to pin D6
+const uint8_t buttonPin = 8; // Button connected to pin D8
 bool buttonPressed = false;
 
 void setup() {
   Serial.begin(9600);
-  pinMode(buttonPin, INPUT_PULLUP); // Use internal pull-up resistor
+  //pinMode(buttonPin, INPUT_PULLUP); // Use internal pull-up resistor
   qtr_setup();
-  waitForButtonPress(); // Wait for the button to start moving
+  //waitForButtonPress(); // Wait for the button to start moving
 }
 
 void loop() {
-  //PID_control();
-  qtr_show();
+  PID_control();
+  //qtr_show();
   //delay(200);
 }
 void motor(int speedL, int speedR) {
@@ -94,8 +94,10 @@ void PID_control() {
   //  Serial.println(position);
   //Serial.println(motorspeed);
   //delay(200);
-  float motorspeeda = basespeeda + motorspeed;
-  float motorspeedb = basespeedb - motorspeed;
+  float motorspeeda = basespeeda + motorspeed; // Left motor
+  float motorspeedb = basespeedb - motorspeed; // Right motor
+
+
 
   if (motorspeeda > maxspeeda) {
     motorspeeda = maxspeeda;
@@ -127,7 +129,7 @@ void PID_control() {
 void qtr_setup() {
   qtr.setTypeAnalog();
   qtr.setSensorPins((const uint8_t[]){ A7, A6, A5, A4, A3, A2, A1, A0 }, SensorCount);
-  qtr.setEmitterPin(D11);
+  qtr.setEmitterPin(11);
   delay(500);
   pinMode(LED_BLUE, OUTPUT);
   digitalWrite(LED_BLUE, LOW);
@@ -156,7 +158,7 @@ void qtr_show() {
   }
   Serial.println(position);
 
-  delay(1200);
+  delay(1);
 }
 
 void waitForButtonPress() {
