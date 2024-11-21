@@ -1,21 +1,21 @@
 #include <QTRSensors.h>
 #include "CytronMotorDriver.h"
 
-// PID tuning parameters and robot speed limits
-float Kp = 1.74; // Kp ค่าหัก ถ้า smoothเกินให้เพิ่ม ถ้าน้อยเกินให้ลด
+float Kp = 0.1;
 float Ki = 0;
-float Kd = 0.63; // Kd ความsmooth ในการหักเข้าเส้น
-const uint8_t maxspeeda = 255;
-const uint8_t maxspeedb = 255;
-const uint8_t basespeeda = 50;
-const uint8_t basespeedb = 50;
+float Kd = 0.1;
+const uint8_t maxspeeda = 100;
+const uint8_t maxspeedb = 100;
+const uint8_t basespeeda = 80;
+const uint8_t basespeedb = 80;
 int state_L = 0;
 int state_R = 0;
 int countstop = 0;
-int bw = 900; // Black-white threshold
+int bw = 900;
 int P;
 int I;
 int D;
+
 
 int lastError = 0;
 bool onoff = false;
@@ -28,44 +28,31 @@ CytronMD motor2(PWM_PWM, D5, D4);  // PWM 2A = Pin D5, PWM 2B = Pin D4.
 const uint8_t buttonPin = 6; // Button connected to pin D6
 bool buttonPressed = false;
 
-unsigned long lastWhiteTime = 0;  // Track time when all white is seen
-bool allWhiteDetected = false;  // Flag to indicate if all white has been detected
-
 void setup() {
   Serial.begin(9600);
   pinMode(buttonPin, INPUT_PULLUP); // Use internal pull-up resistor
-  qtr_setup();        // Run calibration routine
+  qtr_setup();
   waitForButtonPress(); // Wait for the button to start moving
 }
 
 void loop() {
-  PID_control();
-  
-  if (allWhiteDetected) {
-    unsigned long currentTime = millis();
-    if (currentTime - lastWhiteTime >= 3000) {  // Wait for 3 seconds
-      shutdownRobot();  // Shut down the robot after 3 seconds
-    }
-  }
+  //PID_control();
+  qtr_show();
+  //delay(200);
 }
-
 void motor(int speedL, int speedR) {
   motor1.setSpeed(speedL);
   motor2.setSpeed(speedR);
 }
-
 void PID_control() {
   uint16_t position = qtr.readLineBlack(sensorValues);
 
   int error = 3500 - position;
-
-  // Check sensor values and states
   if (sensorValues[3] > bw && sensorValues[4] > bw) {
     countstop = 0;
     //Serial.print("LLLLLLLLLLLLLLL " );
     //Serial.println(state_L);
   }
-  
   if (sensorValues[0] > bw) {
     state_L = 1;
     state_R = 0;
@@ -79,30 +66,50 @@ void PID_control() {
     //Serial.println(state_R);
   }
 
-  // Detect all white on the left or right
-  if (isAllWhite() && (state_L == 1 || state_R == 1)) {
-    error = (state_L == 1) ? 3500 : -3500;
+
+  if (sensorValues[0] < bw && sensorValues[1] < bw && sensorValues[2] < bw && sensorValues[3] < bw && sensorValues[4] < bw && sensorValues[5] < bw && sensorValues[6] < bw && sensorValues[7] < bw && state_L == 1) {
+    //Serial.println("Whiteall L");
+    //Serial.println(state_L);
+    error = 3500;
     countstop += 1;
-    allWhiteDetected = true;  // Flag that all white is detected
-    lastWhiteTime = millis();  // Store time when all white was first detected
-  }
+  } 
+  else if (sensorValues[0] < bw && sensorValues[1] < bw && sensorValues[2] < bw && sensorValues[3] < bw && sensorValues[4] < bw && sensorValues[5] < bw && sensorValues[6] < bw && sensorValues[7] < bw && state_R == 1) {
+    //Serial.println("Whiteall R");
+    error = -3500;
+    countstop += 1;
+  } /*else if (sensorValues[0] > bw || sensorValues[1] > bw || sensorValues[2] > bw || sensorValues[3] > bw || sensorValues[4] > bw || sensorValues[5] > bw || sensorValues[6] > bw || sensorValues[7] > bw) {
+    state_L = 0;
+    state_R = 0;
+    countstop = 0;
+    Serial.println("inline");
+  }*/
 
   P = error;
   I = I + error;
   D = error - lastError;
   lastError = error;
-
   float motorspeed = P * Kp + I * Ki + D * Kd;
+
+  // Serial.print("Position : ");
+  //  Serial.println(position);
+  //Serial.println(motorspeed);
+  //delay(200);
   float motorspeeda = basespeeda + motorspeed;
   float motorspeedb = basespeedb - motorspeed;
 
-  // Limit motor speeds
-  if (motorspeeda > maxspeeda) motorspeeda = maxspeeda;
-  if (motorspeedb > maxspeedb) motorspeedb = maxspeedb;
-  if (motorspeeda < 0) motorspeeda = 0;
-  if (motorspeedb < 0) motorspeedb = 0;
-
-  // Move robot or stop based on countstop
+  if (motorspeeda > maxspeeda) {
+    motorspeeda = maxspeeda;
+  }
+  if (motorspeedb > maxspeedb) {
+    motorspeedb = maxspeedb;
+  }
+  if (motorspeeda < 0) {
+    motorspeeda = 0;
+  }
+  if (motorspeedb < 0) {
+    motorspeedb = 0;
+  }
+  //Serial.println(countstop);
   if (countstop < 200) {
     motor(motorspeeda, motorspeedb);
     //Serial.println("goooooo");
@@ -110,63 +117,46 @@ void PID_control() {
     motor(0, 0);
     //Serial.println("stopppp");
   }
-
-  // Debugging outputs
-  Serial.print("Sensors: ");
-  for (int i = 0; i < SensorCount; i++) {
-    Serial.print(sensorValues[i]);
-    Serial.print("\t");
-  }
-  Serial.println();
-  Serial.print("Error: ");
-  Serial.println(error);
-  Serial.print("Countstop: ");
-  Serial.println(countstop);
+  //  Serial.print("L speed");
+  //  Serial.println(motorspeeda);
+  //  Serial.print("R speed");
+  // Serial.println(motorspeedb);
+  // //
+  //  delay(250);
 }
-
-bool isAllWhite() {
-  // Check if all sensors detect white (values below threshold)
-  for (int i = 0; i < SensorCount; i++) {
-    if (sensorValues[i] > bw) {
-      return false;  // At least one sensor is not detecting white
-    }
-  }
-  return true;  // All sensors are detecting white
-}
-
 void qtr_setup() {
-  Serial.println("Calibrating sensors...");
   qtr.setTypeAnalog();
-  qtr.setSensorPins((const uint8_t[]){ A0, A1, A2, A3, A4, A5, A6, A7 }, SensorCount);
-  qtr.setEmitterPin(12);
+  qtr.setSensorPins((const uint8_t[]){ A7, A6, A5, A4, A3, A2, A1, A0 }, SensorCount);
+  qtr.setEmitterPin(D11);
   delay(500);
   pinMode(LED_BLUE, OUTPUT);
   digitalWrite(LED_BLUE, LOW);
-  
   for (uint16_t i = 0; i < 200; i++) {
     qtr.calibrate();
-
-    // Optional: Print raw sensor values for monitoring during calibration
-    if (i % 50 == 0) {
-      for (uint8_t j = 0; j < SensorCount; j++) {
-        Serial.print(sensorValues[j]);
-        Serial.print("\t");
-      }
-      Serial.println();
-    }
   }
-
   digitalWrite(LED_BLUE, HIGH);
-  Serial.println("Calibration complete!");
-
-  // Debugging calibration outputs
   for (uint8_t i = 0; i < SensorCount; i++) {
-    Serial.print("Min: ");
     Serial.print(qtr.calibrationOn.minimum[i]);
-    Serial.print(", Max: ");
-    Serial.println(qtr.calibrationOn.maximum[i]);
+    Serial.print(' ');
   }
+  Serial.println();
+
+  for (uint8_t i = 0; i < SensorCount; i++) {
+    Serial.print(qtr.calibrationOn.maximum[i]);
+    Serial.print(' ');
+  }
+  Serial.println();
   delay(1000);
+}
+void qtr_show() {
+  uint16_t position = qtr.readLineBlack(sensorValues);
+  for (uint8_t i = 0; i < SensorCount; i++) {
+    Serial.print(sensorValues[i]);
+    Serial.print('\t');
+  }
+  Serial.println(position);
+
+  delay(1200);
 }
 
 void waitForButtonPress() {
@@ -175,12 +165,4 @@ void waitForButtonPress() {
     // Wait for the button to be pressed (LOW signal due to pull-up).
   }
   Serial.println("Button pressed! Starting...");
-}
-
-void shutdownRobot() {
-  Serial.println("Shutting down robot...");
-  motor(0, 0);  // Stop motors
-  while (true) {
-    // Keep robot stopped indefinitely
-  }
 }
