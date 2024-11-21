@@ -1,17 +1,18 @@
 #include <QTRSensors.h>
 #include "CytronMotorDriver.h"
 
-float Kp = 0.1;
+// PID tuning parameters and robot speed limits
+float Kp = 0.0001;
 float Ki = 0;
-float Kd = 0.1;
+float Kd = 0.001;
 const uint8_t maxspeeda = 255;
 const uint8_t maxspeedb = 255;
-const uint8_t basespeeda = 200;
-const uint8_t basespeedb = 200;
+const uint8_t basespeeda = 180;
+const uint8_t basespeedb = 180;
 int state_L = 0;
 int state_R = 0;
 int countstop = 0;
-int bw = 900;
+int bw = 900; // Black-white threshold
 int P;
 int I;
 int D;
@@ -24,7 +25,7 @@ uint16_t sensorValues[SensorCount];
 CytronMD motor1(PWM_PWM, D3, D2);  // PWM 1A = Pin D3, PWM 1B = Pin D2.
 CytronMD motor2(PWM_PWM, D5, D4);  // PWM 2A = Pin D5, PWM 2B = Pin D4.
 
-const uint8_t buttonPin = 8; // Button connected to pin D8
+const uint8_t buttonPin = 6; // Button connected to pin D6
 bool buttonPressed = false;
 
 unsigned long lastWhiteTime = 0;  // Track time when all white is seen
@@ -33,7 +34,7 @@ bool allWhiteDetected = false;  // Flag to indicate if all white has been detect
 void setup() {
   Serial.begin(9600);
   pinMode(buttonPin, INPUT_PULLUP); // Use internal pull-up resistor
-  qtr_setup();
+  qtr_setup();        // Run calibration routine
   waitForButtonPress(); // Wait for the button to start moving
 }
 
@@ -134,6 +135,7 @@ bool isAllWhite() {
 }
 
 void qtr_setup() {
+  Serial.println("Calibrating sensors...");
   qtr.setTypeAnalog();
   qtr.setSensorPins((const uint8_t[]){ A0, A1, A2, A3, A4, A5, A6, A7 }, SensorCount);
   qtr.setEmitterPin(12);
@@ -143,21 +145,27 @@ void qtr_setup() {
   
   for (uint16_t i = 0; i < 200; i++) {
     qtr.calibrate();
+
+    // Optional: Print raw sensor values for monitoring during calibration
+    if (i % 50 == 0) {
+      for (uint8_t j = 0; j < SensorCount; j++) {
+        Serial.print(sensorValues[j]);
+        Serial.print("\t");
+      }
+      Serial.println();
+    }
   }
+
   digitalWrite(LED_BLUE, HIGH);
+  Serial.println("Calibration complete!");
 
-  // Calibration outputs for debugging
+  // Debugging calibration outputs
   for (uint8_t i = 0; i < SensorCount; i++) {
+    Serial.print("Min: ");
     Serial.print(qtr.calibrationOn.minimum[i]);
-    Serial.print(' ');
+    Serial.print(", Max: ");
+    Serial.println(qtr.calibrationOn.maximum[i]);
   }
-  Serial.println();
-
-  for (uint8_t i = 0; i < SensorCount; i++) {
-    Serial.print(qtr.calibrationOn.maximum[i]);
-    Serial.print(' ');
-  }
-  Serial.println();
   delay(1000);
 }
 
