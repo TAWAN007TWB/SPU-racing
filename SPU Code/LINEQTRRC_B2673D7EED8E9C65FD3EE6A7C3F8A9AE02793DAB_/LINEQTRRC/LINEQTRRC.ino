@@ -1,8 +1,8 @@
 #include <QTRSensors.h>
 #include "CytronMotorDriver.h"
 
-float Kp = 0.07; // Kp ค่าหัก ถ้า smoothเกินให้เพิ่ม ถ้าน้อยเกินให้ลด
-float Ki = 0.02;
+float Kp = 0.05; // Kp ค่าหัก ถ้า smoothเกินให้เพิ่ม ถ้าน้อยเกินให้ลด
+float Ki = 0.003;
 float Kd = Kd = 10; // Kd ความsmooth ในการหักเข้าเส้น
 const uint8_t maxspeeda = 120;
 const uint8_t maxspeedb = 120;
@@ -71,12 +71,12 @@ void PID_control() {
     //Serial.println("Whiteall L");
     //Serial.println(state_L);
     error = 3500;
-    countstop += 1;
+    countstop += 2;
   } 
   else if (sensorValues[0] < bw && sensorValues[1] < bw && sensorValues[2] < bw && sensorValues[3] < bw && sensorValues[4] < bw && sensorValues[5] < bw && sensorValues[6] < bw && sensorValues[7] < bw && state_R == 1) {
     //Serial.println("Whiteall R");
     error = -3500;
-    countstop += 1;
+    countstop += 2;
   } /*else if (sensorValues[0] > bw || sensorValues[1] > bw || sensorValues[2] > bw || sensorValues[3] > bw || sensorValues[4] > bw || sensorValues[5] > bw || sensorValues[6] > bw || sensorValues[7] > bw) {
     state_L = 0;
     state_R = 0;
