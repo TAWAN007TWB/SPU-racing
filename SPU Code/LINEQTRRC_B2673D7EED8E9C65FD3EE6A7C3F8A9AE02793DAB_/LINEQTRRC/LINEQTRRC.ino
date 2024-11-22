@@ -2,9 +2,9 @@
 #include "CytronMotorDriver.h"
 
 
-float Kp = 1; // Kp ค่าหัก ถ้า smoothเกินให้เพิ่ม ถ้าน้อยเกินให้ลด
+float Kp = 1.1; // Kp ค่าหัก ถ้า smoothเกินให้เพิ่ม ถ้าน้อยเกินให้ลด
 float Ki = 0;
-float Kd = 1.7; // Kd ความsmooth ในการหักเข้าเส้น
+float Kd = 3; // Kd ความsmooth ในการหักเข้าเส้น
 const uint8_t maxspeeda = 120;
 const uint8_t maxspeedb = 120;
 const uint8_t basespeeda = 100;
