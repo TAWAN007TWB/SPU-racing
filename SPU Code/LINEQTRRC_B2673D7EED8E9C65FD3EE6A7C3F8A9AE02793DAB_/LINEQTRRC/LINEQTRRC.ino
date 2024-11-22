@@ -1,14 +1,18 @@
 #include <QTRSensors.h>
 #include "CytronMotorDriver.h"
+#include <ESP32Servo.h> // Using Servo library for PWM signals
 
 
-float Kp = 1.1; // Kp ค่าหัก ถ้า smoothเกินให้เพิ่ม ถ้าน้อยเกินให้ลด
+Servo esc;              // Servo object to control the ESC
+int motorPin = 12;      // Pin connected to the ESC signal wire
+
+float Kp = 1; // Kp ค่าหัก ถ้า smoothเกินให้เพิ่ม ถ้าน้อยเกินให้ลด
 float Ki = 0;
-float Kd = 3; // Kd ความsmooth ในการหักเข้าเส้น
-const uint8_t maxspeeda = 120;
-const uint8_t maxspeedb = 120;
-const uint8_t basespeeda = 100;
-const uint8_t basespeedb = 100;
+float Kd = 15; // Kd ความsmooth ในการหักเข้าเส้น
+const uint8_t maxspeeda = 170;
+const uint8_t maxspeedb = 170;
+const uint8_t basespeeda = 170;
+const uint8_t basespeedb = 170;
 int state_L = 0;
 int state_R = 0;
 int countstop = 0;
@@ -30,9 +34,16 @@ const uint8_t buttonPin = 8; // Button connected to pin D8
 bool buttonPressed = false;
 
 void setup() {
-  Serial.begin(9600);
   //pinMode(buttonPin, INPUT_PULLUP); // Use internal pull-up resistor
+  esc.attach(motorPin, 1000, 2000); // PWM range: 1000-2000 microseconds
+  esc.writeMicroseconds(1000);
+  delay(2000);
+  
+  Serial.begin(9600);
   qtr_setup();
+  esc.writeMicroseconds(1100); // Mid-speed
+  delay(100);
+  
   //waitForButtonPress(); // Wait for the button to start moving
 }
 
@@ -47,7 +58,7 @@ void motor(int speedL, int speedR) {
 }
 void PID_control() {
   uint16_t position = qtr.readLineBlack(sensorValues);
-
+   
   int error = 3500 - position;
   if (sensorValues[3] > bw && sensorValues[4] > bw) {
     countstop = 0;
@@ -118,6 +129,8 @@ void PID_control() {
     //Serial.println("goooooo");
   } else {
     motor(0, 0);
+    stopFan();
+    delay(100);
     //Serial.println("stopppp");
   }
   //  Serial.print("L speed");
@@ -168,4 +181,8 @@ void waitForButtonPress() {
     // Wait for the button to be pressed (LOW signal due to pull-up).
   }
   Serial.println("Button pressed! Starting...");
+}
+
+void stopFan() {
+  esc.writeMicroseconds(1000); // Minimum throttle to stop the motor
 }
