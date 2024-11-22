@@ -1,20 +1,22 @@
 #include <QTRSensors.h>
 #include "CytronMotorDriver.h"
 
-float Kp = 1.2; // Kp for correction (increase for sharper turn, decrease for smoother turn)
+
+float Kp = 1.2; // Kp ค่าหัก ถ้า smoothเกินให้เพิ่ม ถ้าน้อยเกินให้ลด
 float Ki = 0;
-float Kd = 28; // Kd for smoothing the turn
-uint8_t maxspeeda = 255; // Regular variables to modify speed
-uint8_t maxspeedb = 255;
+float Kd = 28; // Kd ความsmooth ในการหักเข้าเส้น
+const uint8_t maxspeeda = 255;
+const uint8_t maxspeedb = 255;
 const uint8_t basespeeda = 255;
 const uint8_t basespeedb = 255;
 int state_L = 0;
 int state_R = 0;
 int countstop = 0;
-int bw = 800;
+int bw = 900;
 int P;
 int I;
 int D;
+
 
 int lastError = 0;
 bool onoff = false;
@@ -29,52 +31,59 @@ bool buttonPressed = false;
 
 void setup() {
   Serial.begin(9600);
+  //pinMode(buttonPin, INPUT_PULLUP); // Use internal pull-up resistor
   qtr_setup();
+  //waitForButtonPress(); // Wait for the button to start moving
 }
 
 void loop() {
   PID_control();
+  //qtr_show();
+  //delay(200);
 }
-
 void motor(int speedL, int speedR) {
   motor1.setSpeed(speedL);
   motor2.setSpeed(speedR);
 }
-
 void PID_control() {
   uint16_t position = qtr.readLineBlack(sensorValues);
+
   int error = 3500 - position;
-
-  // Check if all sensors detect black
-  bool allBlack = true;
-  for (int i = 0; i < SensorCount; i++) {
-    if (sensorValues[i] <= bw) {
-      allBlack = false;
-      break;
-    }
+  if (sensorValues[3] > bw && sensorValues[4] > bw) {
+    countstop = 0;
+    //Serial.print("LLLLLLLLLLLLLLL " );
+    //Serial.println(state_L);
+  }
+  if (sensorValues[0] > bw) {
+    state_L = 1;
+    state_R = 0;
+    //Serial.print("LLLLLLLLLLLLLLL " );
+    //Serial.println(state_L);
+  }
+  if (sensorValues[7] > bw) {
+    state_R = 1;
+    state_L = 0;
+    //Serial.print("RRRRRRRRRRRRRRR ");
+    //Serial.println(state_R);
   }
 
-  // Handle speed adjustment based on "all black" detection
-  static bool isSlow = false; // Tracks whether the robot is in slow mode
-  if (allBlack && !isSlow) {
-    // If all black detected for the first time, slow down
-    Serial.println("All black detected, slowing down...");
-    maxspeeda /= 2; // Reduce max speed by half
-    maxspeedb /= 2;
-    isSlow = true;
-    delay(1000); // Small pause for stabilization
-    return; // Wait until condition changes
-  }
 
-  if (allBlack && isSlow) {
-    // If all black detected again, restore max speed
-    Serial.println("All black detected again, restoring speed...");
-    maxspeeda *= 2; // Restore max speed
-    maxspeedb *= 2;
-    isSlow = false;
-    delay(1000); // Small pause for stabilization
-    return; // Wait until condition changes
-  }
+  if (sensorValues[0] < bw && sensorValues[1] < bw && sensorValues[2] < bw && sensorValues[3] < bw && sensorValues[4] < bw && sensorValues[5] < bw && sensorValues[6] < bw && sensorValues[7] < bw && state_L == 1) {
+    //Serial.println("Whiteall L");
+    //Serial.println(state_L);
+    error = 3500;
+    countstop += 2;
+  } 
+  else if (sensorValues[0] < bw && sensorValues[1] < bw && sensorValues[2] < bw && sensorValues[3] < bw && sensorValues[4] < bw && sensorValues[5] < bw && sensorValues[6] < bw && sensorValues[7] < bw && state_R == 1) {
+    //Serial.println("Whiteall R");
+    error = -3500;
+    countstop += 2;
+  } /*else if (sensorValues[0] > bw || sensorValues[1] > bw || sensorValues[2] > bw || sensorValues[3] > bw || sensorValues[4] > bw || sensorValues[5] > bw || sensorValues[6] > bw || sensorValues[7] > bw) {
+    state_L = 0;
+    state_R = 0;
+    countstop = 0;
+    Serial.println("inline");
+  }*/
 
   P = error;
   I = I + error;
@@ -82,11 +91,15 @@ void PID_control() {
   lastError = error;
   float motorspeed = P * Kp + I * Ki + D * Kd;
 
-  // Adjust motor speed based on PID values
+  // Serial.print("Position : ");
+  //  Serial.println(position);
+  //Serial.println(motorspeed);
+  //delay(200);
   float motorspeeda = basespeeda + motorspeed; // Left motor
   float motorspeedb = basespeedb - motorspeed; // Right motor
 
-  // Clamp motor speeds to max allowed speed
+
+
   if (motorspeeda > maxspeeda) {
     motorspeeda = maxspeeda;
   }
@@ -99,15 +112,21 @@ void PID_control() {
   if (motorspeedb < 0) {
     motorspeedb = 0;
   }
-
-  // Control the motors based on the countstop value
+  //Serial.println(countstop);
   if (countstop < 200) {
     motor(motorspeeda, motorspeedb);
+    //Serial.println("goooooo");
   } else {
-    motor(0, 0); // Stop if too many consecutive "white all" readings
+    motor(0, 0);
+    //Serial.println("stopppp");
   }
+  //  Serial.print("L speed");
+  //  Serial.println(motorspeeda);
+  //  Serial.print("R speed");
+  // Serial.println(motorspeedb);
+  // //
+  //  delay(250);
 }
-
 void qtr_setup() {
   qtr.setTypeAnalog();
   qtr.setSensorPins((const uint8_t[]){ A7, A6, A5, A4, A3, A2, A1, A0 }, SensorCount);
@@ -131,6 +150,16 @@ void qtr_setup() {
   }
   Serial.println();
   delay(1000);
+}
+void qtr_show() {
+  uint16_t position = qtr.readLineBlack(sensorValues);
+  for (uint8_t i = 0; i < SensorCount; i++) {
+    Serial.print(sensorValues[i]);
+    Serial.print('\t');
+  }
+  Serial.println(position);
+
+  delay(1);
 }
 
 void waitForButtonPress() {
