@@ -9,10 +9,10 @@ int motorPin = 12;      // Pin connected to the ESC signal wire
 float Kp = 1; // Kp ค่าหัก ถ้า smoothเกินให้เพิ่ม ถ้าน้อยเกินให้ลด
 float Ki = 0;
 float Kd = 15; // Kd ความsmooth ในการหักเข้าเส้น
-const uint8_t maxspeeda = 170;
-const uint8_t maxspeedb = 170;
-const uint8_t basespeeda = 170;
-const uint8_t basespeedb = 170;
+const uint8_t maxspeeda = 150;
+const uint8_t maxspeedb = 150;
+const uint8_t basespeeda = 150;
+const uint8_t basespeedb = 150;
 int state_L = 0;
 int state_R = 0;
 int countstop = 0;
@@ -60,6 +60,24 @@ void PID_control() {
   uint16_t position = qtr.readLineBlack(sensorValues);
    
   int error = 3500 - position;
+
+  // Detect if all sensors are on black
+  bool allBlack = true;
+  for (int i = 0; i < SensorCount; i++) {
+    if (sensorValues[i] > bw) {
+      allBlack = false;
+      break;
+    }
+  }
+
+  // If all sensors detect black, reduce speed to 50 for 0.5 sec
+  if (allBlack) {
+    motor(50, 50);       // Set both motors to speed 50
+    delay(500);          // Wait for 0.5 seconds
+    motor(basespeeda, basespeedb); // Reset to normal speed
+    return;              // Exit PID control to avoid further processing
+  }
+
   if (sensorValues[3] > bw && sensorValues[4] > bw) {
     countstop = 0;
     //Serial.print("LLLLLLLLLLLLLLL " );
@@ -140,6 +158,7 @@ void PID_control() {
   // //
   //  delay(250);
 }
+
 void qtr_setup() {
   qtr.setTypeAnalog();
   qtr.setSensorPins((const uint8_t[]){ A7, A6, A5, A4, A3, A2, A1, A0 }, SensorCount);
