@@ -2,14 +2,13 @@
 #include "CytronMotorDriver.h"
 
 
-float Kp = 1.2; // Kp ค่าหัก ถ้า smoothเกินให้เพิ่ม ถ้าน้อยเกินให้ลด
+float Kp = 1.3; // Kp ค่าหัก ถ้า smoothเกินให้เพิ่ม ถ้าน้อยเกินให้ลด
 float Ki = 0;
 float Kd = 24; // Kd ความsmooth ในการหักเข้าเส้น
-uint8_t maxspeeda = 255;
-uint8_t maxspeedb = 255;
-uint8_t basespeeda = 255;
-uint8_t basespeedb = 255;
-int sensor_state = 0; // Global variable to track sensor state
+uint8_t maxspeeda = 230;
+uint8_t maxspeedb = 230;
+uint8_t basespeeda = 230;
+uint8_t basespeedb = 230;
 int state_L = 0;
 int state_R = 0;
 int countstop = 0;
@@ -26,7 +25,7 @@ const uint8_t SensorCount = 8;
 uint16_t sensorValues[SensorCount];
 CytronMD motor1(PWM_PWM, D2, D3);  // PWM 1A = Pin D3, PWM 1B = Pin D2.
 CytronMD motor2(PWM_PWM, D4, D5);  // PWM 2A = Pin D5, PWM 2B = Pin D4.
-
+++
 const uint8_t buttonPin = 8; // Button connected to pin D8
 bool buttonPressed = false;
 
@@ -49,33 +48,6 @@ void motor(int speedL, int speedR) {
 
 void PID_control() {
   uint16_t position = qtr.readLineBlack(sensorValues);
-
-  bool allBlack = true;
-  for (int i = 0; i < SensorCount; i++) {
-    if (sensorValues[i] < bw) { // If any sensor sees white
-      allBlack = false;
-      break;
-    }
-  }
-  
-  if (allBlack) {
-    sensor_state++; // Increment if all sensors see black
-  } else {
-    sensor_state = 0; // Reset if not all sensors see black
-  }
-
-  int adjustedSpeedA = basespeeda;
-  int adjustedSpeedB = basespeedb;
-
-  if (sensor_state == 1) {
-    adjustedSpeedA /= 3; // Reduce speed by half
-    adjustedSpeedB /= 3;
-  } else if (sensor_state >= 2) {
-        if (adjustedSpeedA < basespeeda) adjustedSpeedA += 5; // Increase speed step-by-step
-        if (adjustedSpeedB < basespeedb) adjustedSpeedB += 5; // Adjust the step value for smoothness
-        if (adjustedSpeedA > basespeeda) adjustedSpeedA = basespeeda; // Cap to max
-        if (adjustedSpeedB > basespeedb) adjustedSpeedB = basespeedb;
-  }
   
   int error = 3500 - position;
   if (sensorValues[3] > bw && sensorValues[4] > bw) {
